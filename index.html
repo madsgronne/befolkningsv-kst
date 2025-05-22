@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <title>Befolkningsvækst i Kolding, Fredericia & Vejle</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      margin: 0;
+      padding: 20px 20px 80px;
+      background: #f5f5f5;
+      position: relative;
+      color: #222;
+    }
+    #map {
+      height: 600px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    #description {
+      margin: 20px auto;
+      max-width: 700px;
+      font-size: 17px;
+      line-height: 1.5;
+      text-align: center;
+      color: #444;
+    }
+    #sliderContainer {
+      position: relative;
+      bottom: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      width: 320px;
+      max-width: 90vw;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      user-select: none;
+      z-index: 1400;
+    }
+    #yearLabel {
+      margin-left: 15px;
+      font-weight: 600;
+      font-size: 18px;
+      width: 55px;
+      text-align: center;
+      user-select: none;
+      color: #333;
+    }
+    input[type=range] {
+      flex-grow: 1;
+      cursor: pointer;
+      -webkit-appearance: none;
+      height: 8px;
+      border-radius: 5px;
+      background: #ddd;
+      outline: none;
+      transition: background 0.3s;
+    }
+    input[type=range]:hover {
+      background: #ccc;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #3498db;
+      cursor: pointer;
+      border: 2px solid #2980b9;
+      margin-top: -7px;
+      transition: background 0.3s;
+    }
+    input[type=range]:focus::-webkit-slider-thumb {
+      outline: 3px solid #2980b9;
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #3498db;
+      cursor: pointer;
+      border: 2px solid #2980b9;
+      transition: background 0.3s;
+    }
+    input[type=range]:focus::-moz-range-thumb {
+      outline: 3px solid #2980b9;
+    }
+	.label-div {
+	  display: flex;
+	  flex-direction: column;
+	  align-items: center;
+	  justify-content: center;
+
+	  color: #fff;
+	  font-weight: 600;
+	  font-size: 14px;
+	  text-align: center;
+	  line-height: 1.4;
+	  padding: 6px 10px;
+	  border-radius: 6px;
+	  text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+	  user-select: none;
+	  min-width: 100px;
+	  white-space: nowrap;
+	}
+    
+    #chartContainer {
+      position: fixed;
+      bottom: 25%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border: 2px solid #333;
+      padding: 20px 30px;
+      z-index: 1500;
+      width: 400px;
+      max-width: 90vw;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      border-radius: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    #chartContainer.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #closeChart {
+      position: absolute;
+      top: 8px;
+      right: 14px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 22px;
+      line-height: 1;
+      color: #555;
+      background: transparent;
+      border: none;
+      transition: color 0.3s;
+    }
+    #closeChart:hover,
+    #closeChart:focus {
+      color: #e74c3c;
+      outline: none;
+    }
+	.label-div {
+	  color: #fff;
+	  font-weight: 600;
+	  font-size: 14px;
+	  text-align: center;
+	  white-space: nowrap;
+	  line-height: 1.3;
+	  padding: 5px 8px;
+	  border-radius: 6px;
+	  text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+	  user-select: none;
+	}
+	
+  </style>
+</head>
+<body>
+
+  <div id="description">
+    Kort over befolkningsudviklingen i Kolding, Fredericia og Vejle kommune.<br />
+    Brug skyderen nedenfor, for at se udviklingen over tid, eller tryk på en kommune for en graf over udviklingen.
+  </div>
+
+  <div id="map" aria-label="Kort over befolkningsvækst i Kolding, Fredericia og Vejle" role="region"></div>
+
+  <div id="sliderContainer">
+    <input 
+      type="range" 
+      id="yearSlider" 
+      min="2013" 
+      max="2023" 
+      value="2013" 
+      step="1"
+      aria-valuemin="2013"
+      aria-valuemax="2023"
+      aria-valuenow="2013"
+      aria-label="Vælg år for befolkningsdata"
+      role="slider"
+    />
+    <span id="yearLabel" aria-live="polite" aria-atomic="true">2013</span>
+  </div>
+
+  <div id="chartContainer" role="dialog" aria-modal="true" aria-labelledby="chartTitle" aria-hidden="true">
+    <button id="closeChart" aria-label="Luk diagram">×</button>
+    <canvas id="populationChart" aria-describedby="chartDescription"></canvas>
+    <div id="chartDescription" style="display:none;">
+      Linjediagram over befolkningstal for valgt kommune over tid.
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const kommuneData = {
+      Fredericia: {
+        center: [55.565, 9.740],
+        color: "#3498db",
+        population: {
+          2013: 50500, 2014: 50800, 2015: 51100, 2016: 51400, 2017: 51700,
+          2018: 51900, 2019: 52100, 2020: 52300, 2021: 52400, 2022: 52485, 2023: 52485
+        }
+      },
+      Kolding: {
+        center: [55.490, 9.467],
+        color: "#e74c3c",
+        population: {
+          2013: 91000, 2014: 91200, 2015: 91981, 2016: 92300, 2017: 92600,
+          2018: 92900, 2019: 93100, 2020: 93117, 2021: 93544, 2022: 94546, 2023: 94974
+        }
+      },
+      Vejle: {
+        center: [55.709, 9.536],
+        color: "#2ecc71",
+        population: {
+          2013: 109000, 2014: 110000, 2015: 111000, 2016: 112000, 2017: 113000,
+          2018: 114000, 2019: 115000, 2020: 116492, 2021: 119007, 2022: 120000, 2023: 121488
+        }
+      }
+    };
+
+    const map = L.map('map', {
+      zoomControl: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      dragging: false,
+      touchZoom: false,
+      boxZoom: false,
+      keyboard: false,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    map.fitBounds([
+      [55.45, 9.35], // sydvestlig
+      [55.72, 9.75]  // nordøstlig
+    ]);
+
+    const labels = {};
+    const circles = {};
+
+    function createLabel(kommuneName, info, year) {
+      const population = info.population[year] || 'N/A';
+      let growth = 'N/A';
+      let arrow = '';
+      const prevYear = year - 1;
+      if (info.population[prevYear]) {
+        const growthValue = ((population - info.population[prevYear]) / info.population[prevYear]) * 100;
+        growth = growthValue.toFixed(2) + '%';
+        if (growthValue > 0) {
+          arrow = ' <span style="color: green; font-weight: bold;">▲</span>';  // grøn pil op
+        } else if (growthValue < 0) {
+          arrow = ' <span style="color: red; font-weight: bold;">▼</span>';    // rød pil ned
+        }
+      }
+      const html = `
+        <div class="label-div">
+          <div>${kommuneName}</div>
+          <div>Befolkning:${population.toLocaleString()}  </div>
+          <div>Vækst: ${growth}${arrow}</div>
+        </div>
+      `;
+      return L.divIcon({
+        html,
+        className: '',
+        iconSize: [110, 60],
+        iconAnchor: [55, 30]
+      });
+    }
+
+    for (const [kommune, info] of Object.entries(kommuneData)) {
+      circles[kommune] = L.circle(info.center, {
+        color: info.color,
+        fillColor: info.color,
+        fillOpacity: 0.3,
+        radius: 8500
+      }).addTo(map);
+
+      labels[kommune] = L.marker(info.center, {
+        icon: createLabel(kommune, info, 2013),
+        interactive: false
+      }).addTo(map);
+
+      circles[kommune].on('click', () => showChart(kommune));
+    }
+
+    let chart;
+
+    function showChart(kommuneName) {
+      const data = kommuneData[kommuneName].population;
+      const years = Object.keys(data);
+      const values = Object.values(data);
+
+      const ctx = document.getElementById('populationChart').getContext('2d');
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: years,
+          datasets: [{
+            label: `Befolkning i ${kommuneName}`,
+            data: values,
+            borderColor: kommuneData[kommuneName].color,
+            backgroundColor: 'rgba(0,0,0,0)',
+            fill: false,
+            tension: 0.2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: false,
+              ticks: { stepSize: 5000 }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { font: { size: 14 } }
+            },
+            tooltip: {
+              enabled: true,
+              mode: 'nearest',
+              intersect: false,
+            }
+          }
+        }
+      });
+
+      const chartContainer = document.getElementById('chartContainer');
+      chartContainer.style.display = 'block';
+      setTimeout(() => {
+        chartContainer.classList.add('visible');
+        chartContainer.setAttribute('aria-hidden', 'false');
+      }, 10);
+
+      document.getElementById('closeChart').focus();
+    }
+
+    document.getElementById('closeChart').addEventListener('click', () => {
+      const chartContainer = document.getElementById('chartContainer');
+      chartContainer.classList.remove('visible');
+      chartContainer.setAttribute('aria-hidden', 'true');
+      setTimeout(() => {
+        chartContainer.style.display = 'none';
+      }, 400);
+      document.getElementById('map').focus();
+    });
+
+    const yearSlider = document.getElementById('yearSlider');
+    const yearLabel = document.getElementById('yearLabel');
+
+    function updateLabels(year) {
+      yearLabel.textContent = year;
+      yearSlider.setAttribute('aria-valuenow', year);
+      for (const [kommune, info] of Object.entries(kommuneData)) {
+        labels[kommune].setIcon(createLabel(kommune, info, year));
+      }
+    }
+
+    function debounce(fn, delay) {
+      let timer = null;
+      return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+      };
+    }
+
+    const debouncedUpdate = debounce(() => {
+      const year = parseInt(yearSlider.value);
+      updateLabels(year);
+    }, 150);
+
+    yearSlider.addEventListener('input', debouncedUpdate);
+
+    updateLabels(parseInt(yearSlider.value));
+  </script>
+</body>
+</html>
